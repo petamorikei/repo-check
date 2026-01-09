@@ -4,23 +4,23 @@ use rayon::prelude::*;
 use std::fs;
 use std::path::Path;
 
-/// ディレクトリがGitリポジトリかどうかを判定
-/// .gitがディレクトリである通常のリポジトリのみ対象（サブモジュールは対象外）
+/// Check if a directory is a Git repository.
+/// Only targets normal repositories where .git is a directory (excludes submodules).
 fn is_git_repository(path: &Path) -> bool {
     let git_path = path.join(".git");
     git_path.exists() && git_path.is_dir()
 }
 
-/// カレントディレクトリ直下のGitリポジトリを検出
+/// Find Git repositories directly under the base path
 pub fn find_repositories(base_path: &Path, include_dot: bool) -> Vec<std::path::PathBuf> {
     let mut repos = Vec::new();
 
-    // カレントディレクトリ自体をチェック（--include-dot時）
+    // Check the base directory itself (when --include-dot)
     if include_dot && is_git_repository(base_path) {
         repos.push(base_path.to_path_buf());
     }
 
-    // 直下のディレクトリをスキャン（depth=1）
+    // Scan immediate subdirectories (depth=1)
     if let Ok(entries) = fs::read_dir(base_path) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -30,12 +30,12 @@ pub fn find_repositories(base_path: &Path, include_dot: bool) -> Vec<std::path::
         }
     }
 
-    // 辞書順でソート
+    // Sort alphabetically
     repos.sort();
     repos
 }
 
-/// 全リポジトリをスキャン（並列実行、結果は辞書順）
+/// Scan all repositories (parallel execution, results in alphabetical order)
 pub fn scan_repositories(
     base_path: &Path,
     include_dot: bool,
@@ -43,13 +43,13 @@ pub fn scan_repositories(
 ) -> Vec<RepoResult> {
     let repos = find_repositories(base_path, include_dot);
 
-    // 並列でチェック実行
+    // Execute checks in parallel
     let mut results: Vec<RepoResult> = repos
         .par_iter()
         .map(|repo_path| check_repository(repo_path, ignore_untracked))
         .collect();
 
-    // 辞書順でソート（並列実行で順序が不定になるため）
+    // Sort alphabetically (parallel execution makes order non-deterministic)
     results.sort_by(|a, b| a.path.cmp(&b.path));
 
     results
@@ -65,10 +65,10 @@ mod tests {
     fn test_is_git_repository() {
         let dir = TempDir::new().unwrap();
 
-        // 初期状態ではGitリポジトリではない
+        // Initially not a Git repository
         assert!(!is_git_repository(dir.path()));
 
-        // git init後はGitリポジトリ
+        // After git init, it becomes a Git repository
         Command::new("git")
             .args(["init"])
             .current_dir(dir.path())
@@ -81,7 +81,7 @@ mod tests {
     fn test_find_repositories() {
         let base = TempDir::new().unwrap();
 
-        // サブディレクトリを作成してgit init
+        // Create subdirectories and git init
         let repo1 = base.path().join("repo_a");
         let repo2 = base.path().join("repo_b");
         let not_repo = base.path().join("not_repo");

@@ -5,7 +5,7 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use std::fs;
 use std::path::Path;
 
-/// 削除対象のリポジトリをフィルタリング
+/// Filter repositories that are candidates for deletion
 pub fn get_delete_candidates(
     results: &[RepoResult],
     allow_unknown: bool,
@@ -18,10 +18,10 @@ pub fn get_delete_candidates(
         .collect()
 }
 
-/// リポジトリを削除（ゴミ箱優先）
+/// Delete a repository (prefer trash, fallback to rm -rf)
 fn delete_repository(path: &Path, use_trash: bool) -> Result<()> {
     if use_trash {
-        // ゴミ箱への移動を試みる
+        // Try to move to trash
         match trash::delete(path) {
             Ok(()) => return Ok(()),
             Err(e) => {
@@ -34,12 +34,12 @@ fn delete_repository(path: &Path, use_trash: bool) -> Result<()> {
         }
     }
 
-    // rm -rf にフォールバック
+    // Fallback to rm -rf
     fs::remove_dir_all(path)?;
     Ok(())
 }
 
-/// ユーザーに削除確認を求める
+/// Ask user for deletion confirmation
 fn ask_confirmation(path: &Path) -> DeleteConfirm {
     let path_str = path.display().to_string();
     println!("\nDelete {}?", path_str.bold());
@@ -47,7 +47,7 @@ fn ask_confirmation(path: &Path) -> DeleteConfirm {
     let options = &["Yes", "No", "All (delete all remaining)", "Quit"];
     let selection = Select::with_theme(&ColorfulTheme::default())
         .items(options)
-        .default(1) // デフォルトは "No"
+        .default(1) // Default is "No"
         .interact_opt();
 
     match selection {
@@ -59,7 +59,7 @@ fn ask_confirmation(path: &Path) -> DeleteConfirm {
     }
 }
 
-/// 削除を実行
+/// Execute deletion
 pub fn execute_delete(
     candidates: &[&RepoResult],
     use_trash: bool,
@@ -89,7 +89,7 @@ pub fn execute_delete(
             }
         }
 
-        // 削除実行
+        // Execute deletion
         print!("Deleting {}... ", path.display());
         match delete_repository(path, use_trash) {
             Ok(()) => {
@@ -106,7 +106,7 @@ pub fn execute_delete(
     Ok((deleted, skipped))
 }
 
-/// 削除候補を表示
+/// Display deletion candidates
 pub fn show_delete_candidates(candidates: &[&RepoResult]) {
     if candidates.is_empty() {
         println!("No repositories to delete.");

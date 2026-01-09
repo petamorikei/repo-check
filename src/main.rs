@@ -16,10 +16,10 @@ fn main() -> Result<()> {
 
     let base_path = Path::new(&args.path).canonicalize()?;
 
-    // リポジトリをスキャン
+    // Scan repositories
     let results = scanner::scan_repositories(&base_path, args.include_dot, args.ignore_untracked);
 
-    // フィルタを決定
+    // Determine filter
     let filter = if args.only_safe {
         Some(Status::Safe)
     } else if args.only_unsafe {
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
         None
     };
 
-    // 削除モード
+    // Delete mode
     if args.delete {
         let candidates = delete::get_delete_candidates(&results, args.allow_unknown);
 
@@ -39,15 +39,15 @@ fn main() -> Result<()> {
             return Ok(());
         }
 
-        // 削除候補を表示
+        // Show delete candidates
         delete::show_delete_candidates(&candidates);
 
-        // 削除実行
+        // Execute deletion
         let (deleted, skipped) = delete::execute_delete(&candidates, args.trash, args.yes)?;
 
         println!("\nDeleted: {}, Skipped: {}", deleted, skipped);
     } else {
-        // スキャンのみモード
+        // Scan-only mode
         output::print_filtered(&results, filter, args.json);
     }
 

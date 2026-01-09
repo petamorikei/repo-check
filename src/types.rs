@@ -1,15 +1,15 @@
 use serde::Serialize;
 use std::path::PathBuf;
 
-/// リポジトリの判定ステータス
+/// Repository check status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Status {
-    /// 削除しても安全
+    /// Safe to delete
     Safe,
-    /// ローカル固有の変更が存在（削除不可）
+    /// Local-only changes exist (cannot delete)
     Unsafe,
-    /// 判定不能（原則削除不可）
+    /// Cannot determine (deletion not recommended)
     Unknown,
 }
 
@@ -23,21 +23,21 @@ impl std::fmt::Display for Status {
     }
 }
 
-/// 判定理由の種類
+/// Reason for the check result
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Reason {
-    /// 未コミット変更あり
+    /// Uncommitted changes exist
     UncommittedChanges,
-    /// stash あり
+    /// Stash entries exist
     StashExists,
-    /// ローカル専用コミットあり
+    /// Local-only commits exist
     LocalOnlyCommits,
-    /// リモート追跡参照なし
+    /// No remote tracking refs
     NoRemoteRefs,
-    /// Gitエラー
+    /// Git error occurred
     GitError(String),
-    /// 全チェックOK
+    /// All checks passed
     AllChecksOk,
 }
 
@@ -54,22 +54,22 @@ impl std::fmt::Display for Reason {
     }
 }
 
-/// リポジトリのチェック結果
+/// Repository check result
 #[derive(Debug, Clone, Serialize)]
 pub struct RepoResult {
-    /// リポジトリのパス
+    /// Repository path
     pub path: PathBuf,
-    /// 判定ステータス
+    /// Check status
     pub status: Status,
-    /// 判定理由（複数）
+    /// Reasons for the status (multiple possible)
     pub reasons: Vec<Reason>,
-    /// 未コミット変更のファイル数
+    /// Number of dirty files
     pub dirty_count: usize,
-    /// stash件数
+    /// Number of stash entries
     pub stash_count: usize,
-    /// ローカル専用コミット数
+    /// Number of local-only commits
     pub local_only_commit_count: usize,
-    /// エラーメッセージ（あれば）
+    /// Error messages (if any)
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub errors: Vec<String>,
 }
@@ -87,13 +87,13 @@ impl RepoResult {
         }
     }
 
-    /// UNSAFEとしてマーク
+    /// Mark as UNSAFE
     pub fn mark_unsafe(&mut self, reason: Reason) {
         self.status = Status::Unsafe;
         self.reasons.push(reason);
     }
 
-    /// UNKNOWNとしてマーク（既にUNSAFEでない場合）
+    /// Mark as UNKNOWN (only if not already UNSAFE)
     pub fn mark_unknown(&mut self, reason: Reason) {
         if self.status != Status::Unsafe {
             self.status = Status::Unknown;
@@ -101,7 +101,7 @@ impl RepoResult {
         self.reasons.push(reason);
     }
 
-    /// SAFEを確定
+    /// Finalize as SAFE
     pub fn finalize_safe(&mut self) {
         if self.status == Status::Safe {
             self.reasons.push(Reason::AllChecksOk);
@@ -109,7 +109,7 @@ impl RepoResult {
     }
 }
 
-/// 削除時のユーザー応答
+/// User response for deletion confirmation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeleteConfirm {
     Yes,

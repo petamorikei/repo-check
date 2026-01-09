@@ -3,6 +3,10 @@ name = "repo-check"
 version = "0.1.0"
 edition = "2024"
 description = "Check if local Git repositories are safe to delete"
+license = "MIT"
+readme = "README.md"
+keywords = ["git", "cli", "repository", "cleanup"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -13,3 +17,6 @@ dialoguer = "0.11"
 trash = "5"
 anyhow = "1"
 colored = "2"
+
+[dev-dependencies]
+tempfile = "3"

@@ -7,6 +7,7 @@ license = "MIT"
 readme = "README.md"
 keywords = ["git", "cli", "repository", "cleanup"]
 categories = ["command-line-utilities", "development-tools"]
+repository = "https://github.com/petamorikei/repo-check"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

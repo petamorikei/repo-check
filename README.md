@@ -21,7 +21,7 @@ cargo install repo-check
 ### From source
 
 ```bash
-git clone https://github.com/yourname/repo-check.git
+git clone https://github.com/petamorikei/repo-check.git
 cd repo-check
 cargo install --path .
 ```

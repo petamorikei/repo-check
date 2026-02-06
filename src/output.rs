@@ -1,7 +1,7 @@
 use crate::types::{RepoResult, Status};
 use colored::Colorize;
 
-/// 単一リポジトリの結果を表示
+/// Display result for a single repository
 fn print_repo_result(result: &RepoResult) {
     let path_str = result.path.display().to_string();
     let status_str = match result.status {
@@ -12,12 +12,12 @@ fn print_repo_result(result: &RepoResult) {
 
     println!("{} [{}]", path_str.bold(), status_str);
 
-    // 理由を表示
+    // Display reasons
     for reason in &result.reasons {
         println!("  - {}", reason);
     }
 
-    // 補助情報
+    // Auxiliary information
     if result.dirty_count > 0 {
         println!("    Dirty files: {}", result.dirty_count);
     }
@@ -28,13 +28,13 @@ fn print_repo_result(result: &RepoResult) {
         println!("    Local-only commits: {}", result.local_only_commit_count);
     }
 
-    // エラーがあれば表示
+    // Display errors if any
     for error in &result.errors {
         println!("    {}: {}", "Error".red(), error);
     }
 }
 
-/// サマリーを表示
+/// Display summary
 fn print_summary(results: &[RepoResult]) {
     let safe_count = results.iter().filter(|r| r.status == Status::Safe).count();
     let unsafe_count = results
@@ -59,7 +59,7 @@ fn print_summary(results: &[RepoResult]) {
     );
 }
 
-/// フィルタリングして出力
+/// Filter and output results
 pub fn print_filtered(results: &[RepoResult], filter: Option<Status>, json: bool) {
     let filtered: Vec<&RepoResult> = match filter {
         Some(status) => results.iter().filter(|r| r.status == status).collect(),
@@ -80,7 +80,7 @@ pub fn print_filtered(results: &[RepoResult], filter: Option<Status>, json: bool
             println!();
         }
 
-        // フィルタリング時もサマリー表示（全体の統計）
+        // Show summary even when filtering (overall statistics)
         print_summary(results);
     }
 }

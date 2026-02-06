@@ -16,17 +16,31 @@ pub fn find_repositories(base_path: &Path, include_dot: bool) -> Vec<std::path::
     let mut repos = Vec::new();
 
     // Check the base directory itself (when --include-dot)
-    if include_dot && is_git_repository(base_path) {
-        repos.push(base_path.to_path_buf());
+    if include_dot {
+        if base_path.symlink_metadata().map(|m| m.is_symlink()).unwrap_or(false) {
+            eprintln!("Warning: Skipping symlink: {}", base_path.display());
+        } else if is_git_repository(base_path) {
+            repos.push(base_path.to_path_buf());
+        }
     }
 
     // Scan immediate subdirectories (depth=1)
-    if let Ok(entries) = fs::read_dir(base_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() && is_git_repository(&path) {
-                repos.push(path);
+    match fs::read_dir(base_path) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                // Skip symlinks
+                if path.symlink_metadata().map(|m| m.is_symlink()).unwrap_or(false) {
+                    eprintln!("Warning: Skipping symlink: {}", path.display());
+                    continue;
+                }
+                if path.is_dir() && is_git_repository(&path) {
+                    repos.push(path);
+                }
             }
+        }
+        Err(e) => {
+            eprintln!("Warning: Failed to read directory {}: {}", base_path.display(), e);
         }
     }
 

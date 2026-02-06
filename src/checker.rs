@@ -5,8 +5,11 @@ use std::process::Command;
 
 /// Execute a git command and return stdout
 fn git_command(repo_path: &Path, args: &[&str]) -> Result<String> {
+    let path_str = repo_path.to_str().ok_or_else(|| {
+        anyhow::anyhow!("Path is not valid UTF-8: {:?}", repo_path)
+    })?;
     let output = Command::new("git")
-        .args(["-C", repo_path.to_str().unwrap_or(".")])
+        .args(["-C", path_str])
         .args(args)
         .output()?;
 
@@ -132,6 +135,16 @@ pub fn check_repository(repo_path: &Path, ignore_untracked: bool) -> RepoResult 
     result.finalize_safe();
 
     result
+}
+
+/// Quick recheck before deletion (TOCTOU mitigation)
+/// Returns true if the repository still appears safe to delete.
+pub fn quick_recheck(repo_path: &Path) -> bool {
+    // Only check uncommitted changes as a fast safety check
+    match git_command(repo_path, &["status", "--porcelain"]) {
+        Ok(output) => output.trim().is_empty(),
+        Err(_) => false, // If git fails, assume not safe
+    }
 }
 
 #[cfg(test)]

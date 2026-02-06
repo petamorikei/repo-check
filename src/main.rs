@@ -5,7 +5,7 @@ mod output;
 mod scanner;
 mod types;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Args;
 use std::path::Path;
@@ -14,7 +14,9 @@ use types::Status;
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let base_path = Path::new(&args.path).canonicalize()?;
+    let base_path = Path::new(&args.path)
+        .canonicalize()
+        .context(format!("Failed to resolve path: {}", args.path))?;
 
     // Scan repositories
     let results = scanner::scan_repositories(&base_path, args.include_dot, args.ignore_untracked);
@@ -39,13 +41,15 @@ fn main() -> Result<()> {
             return Ok(());
         }
 
-        // Show delete candidates
         delete::show_delete_candidates(&candidates);
 
-        // Execute deletion
-        let (deleted, skipped) = delete::execute_delete(&candidates, args.trash, args.yes)?;
-
-        println!("\nDeleted: {}, Skipped: {}", deleted, skipped);
+        if args.dry_run {
+            println!("\n(dry-run mode: no repositories were deleted)");
+        } else {
+            let (deleted, skipped) =
+                delete::execute_delete(&candidates, args.trash, args.yes)?;
+            println!("\nDeleted: {}, Skipped: {}", deleted, skipped);
+        }
     } else {
         // Scan-only mode
         output::print_filtered(&results, filter, args.json);

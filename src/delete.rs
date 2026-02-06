@@ -1,3 +1,4 @@
+use crate::checker;
 use crate::types::{DeleteConfirm, RepoResult, Status};
 use anyhow::Result;
 use colored::Colorize;
@@ -19,24 +20,40 @@ pub fn get_delete_candidates(
 }
 
 /// Delete a repository (prefer trash, fallback to rm -rf)
-fn delete_repository(path: &Path, use_trash: bool) -> Result<()> {
+fn delete_repository(path: &Path, use_trash: bool, skip_confirm: bool) -> Result<bool> {
     if use_trash {
-        // Try to move to trash
         match trash::delete(path) {
-            Ok(()) => return Ok(()),
+            Ok(()) => return Ok(true),
             Err(e) => {
+                if skip_confirm {
+                    eprintln!(
+                        "{}: Failed to move to trash ({}), skipping (use without --trash to force rm -rf)",
+                        "Warning".yellow(),
+                        e
+                    );
+                    return Ok(false);
+                }
                 eprintln!(
-                    "{}: Failed to move to trash ({}), falling back to rm -rf",
+                    "{}: Failed to move to trash: {}",
                     "Warning".yellow(),
                     e
                 );
+                let options = &["Yes, use rm -rf instead", "No, skip this repository"];
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Fall back to permanent deletion?")
+                    .items(options)
+                    .default(1)
+                    .interact_opt();
+                match selection {
+                    Ok(Some(0)) => {} // fall through to rm -rf
+                    _ => return Ok(false),
+                }
             }
         }
     }
 
-    // Fallback to rm -rf
     fs::remove_dir_all(path)?;
-    Ok(())
+    Ok(true)
 }
 
 /// Ask user for deletion confirmation
@@ -89,12 +106,26 @@ pub fn execute_delete(
             }
         }
 
+        // TOCTOU mitigation: recheck before deletion
+        if !checker::quick_recheck(path) {
+            println!(
+                "{}: Repository state changed since scan, skipping: {}",
+                "Warning".yellow(),
+                path.display()
+            );
+            skipped += 1;
+            continue;
+        }
+
         // Execute deletion
         print!("Deleting {}... ", path.display());
-        match delete_repository(path, use_trash) {
-            Ok(()) => {
+        match delete_repository(path, use_trash, delete_all) {
+            Ok(true) => {
                 println!("{}", "done".green());
                 deleted += 1;
+            }
+            Ok(false) => {
+                skipped += 1;
             }
             Err(e) => {
                 println!("{}: {}", "failed".red(), e);

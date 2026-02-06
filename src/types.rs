@@ -117,3 +117,36 @@ pub enum DeleteConfirm {
     All,
     Quit,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_status_priority_unsafe_over_unknown() {
+        let mut result = RepoResult::new(PathBuf::from("/test"));
+        result.mark_unsafe(Reason::UncommittedChanges);
+        result.mark_unknown(Reason::NoRemoteRefs);
+        // UNSAFE should take priority
+        assert_eq!(result.status, Status::Unsafe);
+        // Both reasons should be recorded
+        assert_eq!(result.reasons.len(), 2);
+    }
+
+    #[test]
+    fn test_finalize_safe() {
+        let mut result = RepoResult::new(PathBuf::from("/test"));
+        result.finalize_safe();
+        assert_eq!(result.status, Status::Safe);
+        assert!(result.reasons.contains(&Reason::AllChecksOk));
+    }
+
+    #[test]
+    fn test_finalize_not_safe_when_unsafe() {
+        let mut result = RepoResult::new(PathBuf::from("/test"));
+        result.mark_unsafe(Reason::StashExists);
+        result.finalize_safe();
+        // Should NOT add AllChecksOk when UNSAFE
+        assert!(!result.reasons.contains(&Reason::AllChecksOk));
+    }
+}

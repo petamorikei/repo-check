@@ -203,4 +203,84 @@ mod tests {
         assert_eq!(result.status, crate::types::Status::Unsafe);
         assert!(result.dirty_count > 0);
     }
+
+    #[test]
+    fn test_stash_detection() {
+        let dir = setup_git_repo();
+        std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
+        Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["commit", "-m", "initial"]).current_dir(dir.path()).output().unwrap();
+        // Create a stash
+        std::fs::write(dir.path().join("test.txt"), "modified").unwrap();
+        Command::new("git").args(["stash"]).current_dir(dir.path()).output().unwrap();
+
+        let result = check_repository(dir.path(), false);
+        assert_eq!(result.status, crate::types::Status::Unsafe);
+        assert!(result.stash_count > 0);
+    }
+
+    #[test]
+    fn test_ignore_untracked() {
+        let dir = setup_git_repo();
+        std::fs::write(dir.path().join("committed.txt"), "hello").unwrap();
+        Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["commit", "-m", "initial"]).current_dir(dir.path()).output().unwrap();
+        // Add untracked file
+        std::fs::write(dir.path().join("untracked.txt"), "new").unwrap();
+
+        // Without ignore_untracked -> UNSAFE
+        let result = check_repository(dir.path(), false);
+        assert_eq!(result.status, crate::types::Status::Unsafe);
+
+        // With ignore_untracked -> still UNKNOWN because no remote
+        let result = check_repository(dir.path(), true);
+        // dirty_count should be 0 since untracked is ignored
+        assert_eq!(result.dirty_count, 0);
+    }
+
+    #[test]
+    fn test_quick_recheck_clean() {
+        let dir = setup_git_repo();
+        std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
+        Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["commit", "-m", "initial"]).current_dir(dir.path()).output().unwrap();
+
+        assert!(quick_recheck(dir.path()));
+    }
+
+    #[test]
+    fn test_quick_recheck_dirty() {
+        let dir = setup_git_repo();
+        std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
+
+        assert!(!quick_recheck(dir.path()));
+    }
+
+    #[test]
+    fn test_local_only_commits_with_remote() {
+        let dir = setup_git_repo();
+        // Create a bare repo as remote
+        let remote_dir = tempfile::TempDir::new().unwrap();
+        Command::new("git").args(["init", "--bare"]).current_dir(remote_dir.path()).output().unwrap();
+
+        std::fs::write(dir.path().join("test.txt"), "hello").unwrap();
+        Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["commit", "-m", "initial"]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["remote", "add", "origin", remote_dir.path().to_str().unwrap()]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["push", "-u", "origin", "HEAD"]).current_dir(dir.path()).output().unwrap();
+
+        // All pushed -> SAFE
+        let result = check_repository(dir.path(), false);
+        assert_eq!(result.status, crate::types::Status::Safe);
+        assert_eq!(result.local_only_commit_count, 0);
+
+        // Add unpushed commit -> UNSAFE
+        std::fs::write(dir.path().join("test2.txt"), "world").unwrap();
+        Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+        Command::new("git").args(["commit", "-m", "local only"]).current_dir(dir.path()).output().unwrap();
+
+        let result = check_repository(dir.path(), false);
+        assert_eq!(result.status, crate::types::Status::Unsafe);
+        assert!(result.local_only_commit_count > 0);
+    }
 }

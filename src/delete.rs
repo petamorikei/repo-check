@@ -155,3 +155,43 @@ pub fn show_delete_candidates(candidates: &[&RepoResult]) {
     }
     println!("\nTotal: {} repositories", candidates.len());
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{Reason, RepoResult, Status};
+    use std::path::PathBuf;
+
+    fn make_result(path: &str, status: Status, reason: Reason) -> RepoResult {
+        let mut r = RepoResult::new(PathBuf::from(path));
+        match status {
+            Status::Safe => r.finalize_safe(),
+            Status::Unsafe => r.mark_unsafe(reason),
+            Status::Unknown => r.mark_unknown(reason),
+        }
+        r
+    }
+
+    #[test]
+    fn test_get_delete_candidates_safe_only() {
+        let results = vec![
+            make_result("/safe", Status::Safe, Reason::AllChecksOk),
+            make_result("/unsafe", Status::Unsafe, Reason::UncommittedChanges),
+            make_result("/unknown", Status::Unknown, Reason::NoRemoteRefs),
+        ];
+        let candidates = get_delete_candidates(&results, false);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].path, PathBuf::from("/safe"));
+    }
+
+    #[test]
+    fn test_get_delete_candidates_allow_unknown() {
+        let results = vec![
+            make_result("/safe", Status::Safe, Reason::AllChecksOk),
+            make_result("/unsafe", Status::Unsafe, Reason::UncommittedChanges),
+            make_result("/unknown", Status::Unknown, Reason::NoRemoteRefs),
+        ];
+        let candidates = get_delete_candidates(&results, true);
+        assert_eq!(candidates.len(), 2);
+    }
+}

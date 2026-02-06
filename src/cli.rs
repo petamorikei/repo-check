@@ -30,7 +30,7 @@ pub struct Args {
     pub ignore_untracked: bool,
 
     /// Include UNKNOWN repositories in delete candidates
-    #[arg(long)]
+    #[arg(long, requires = "delete")]
     pub allow_unknown: bool,
 
     /// Delete SAFE repositories (requires --yes for non-interactive mode)
@@ -42,8 +42,12 @@ pub struct Args {
     pub yes: bool,
 
     /// Move to trash instead of permanent deletion (falls back to rm -rf if unavailable)
-    #[arg(long)]
+    #[arg(long, requires = "delete")]
     pub trash: bool,
+
+    /// Show what would be deleted without actually deleting
+    #[arg(long, requires = "delete")]
+    pub dry_run: bool,
 
     /// Target directory to scan (defaults to current directory)
     #[arg(default_value = ".")]

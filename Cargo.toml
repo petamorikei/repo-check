@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["git", "cli", "repository", "cleanup"]
 categories = ["command-line-utilities", "development-tools"]
 repository = "https://github.com/petamorikei/repo-check"
+rust-version = "1.85.0"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
